@@ -1,61 +1,54 @@
-name: Build and Deploy React App to S3
+name: cicd pipeline
 
 on:
     push:
-        branches:
-            - main
-
-permissions:
-    id-token: write
-    contents: read
-
+        branches: ['dev', 'main', test, qa]
+    pull_request:
+        branches: [main, dev, test, qa]
 jobs:
-    build-and-deploy:
-        name: Build and Deploy
+    upgrade:
         runs-on: ubuntu-latest
-
         steps:
-            - name: Checkout
-              uses: actions/checkout@v3
+            - name: Checkout to Gihub
+              uses: actions/checkout@v4
 
-            - name: Set up Node.js
-              uses: actions/setup-node@v3
+            - name: build and push nextjs app
+              uses: actions/setup-node@v4
               with:
-                  node-version: 20
-
-            # - name: Install Yarn
-            #   run: npm install -g yarn
-
-            # - name: Install dependenciess
-            #   run: yarn install --frozen-lockfile
-
-            # - name: Build
-            #   run: yarn build
-
-            - name: Set environment variables
-              env:
-                VITE_EDITOR_KEY: ${{ secrets.VITE_EDITOR_KEY}}
+                  node-version: '20.x'
+            - name: Install dependencies and build
               run: |
-                  echo "VITE_EDITOR_KEY=$VITE_EDITOR_KEY" >> .env.local
+                  npm install
+                  npm run build
+              working-directory: ./m4ace-web
 
-            - name: Install dependencies Build
-              run: npm install
-            - name: Build
-              run: npm run build
-              
-              
-            - name: Configure AWS Credentials
-              uses: aws-actions/configure-aws-credentials@v1
+            - name: aunticate to AWS
+              uses: aws-actions/configure-aws-credentials@v3
               with:
                   aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
                   aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
                   aws-region: us-east-1
 
-            - name: Deploy to S3
-              run: aws s3 sync ./dist s3://m-trend --acl public-read
+            - name: install and run terraform
+              uses: hashicorp/setup-terraform@v2
+              with:
+                  terraform_version: 1.5.7
+            - name: Terraform Init
+              run: terraform init
+              working-directory: ./terraform
 
-             
-                  
+            - name: Terraform Validate
+              run: terraform validate
+              working-directory: ./terraform
+
+            - name: Terraform Format
+              run: terraform fmt -recursive
+
+              working-directory: ./terraform
+
+            - name: Terraform Plan
+              run: terraform plan
+              working-directory:./terraform 
 
 
 # name: Deploy Static Website with Terraform CI/CD
