@@ -1,0 +1,45 @@
+name: Deploy Static Website with Terraform Ci/Cd
+  
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Terraform + Website Upload
+    runs-on: ubuntu-latest
+
+    steps:
+      - name:  Checkout repository
+        uses: actions/Checkout@v4
+      - name:  Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
+
+      - name: 🔐 Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name:  Terraform Init
+        run: terraform init
+
+      - name: ✅ Terraform Validate
+        run: terraform validate
+
+      - name: 🔍 Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: 🚀 Terraform Apply (auto-approve)
+        run: terraform apply -auto-approve tfplan
+
+      - name: 📤 Upload website files to S3
+        run: |
+          bucket_name=$(terraform output -raw website_url | cut -d'.' -f1)
+          aws s3 sync ./website s3://$bucket_name --delete
