@@ -1,45 +1,105 @@
-name: Deploy Static Website with Terraform CI/CD
+name: Build and Deploy React App to S3
 
 on:
-  push:
-    branches: ["main"]
-  # pull_request:
-  #   branches: ["main"]
+    push:
+        branches:
+            - main
+
+permissions:
+    id-token: write
+    contents: read
 
 jobs:
-  deploy:
-    name: Terraform + Website Upload
-    runs-on: ubuntu-latest
+    build-and-deploy:
+        name: Build and Deploy
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v3
 
-      - name: 🛠 Set up Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.7
+            - name: Set up Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: 20
 
-      - name: 🔐 Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+            # - name: Install Yarn
+            #   run: npm install -g yarn
 
-      - name: 📁 Terraform Init
-        run: terraform init
+            # - name: Install dependenciess
+            #   run: yarn install --frozen-lockfile
 
-      - name: ✅ Terraform Validate
-        run: terraform validate
+            # - name: Build
+            #   run: yarn build
 
-      - name: 🔍 Terraform Plan
-        run: terraform plan -out=tfplan
+            - name: Set environment variables
+              env:
+                VITE_EDITOR_KEY: ${{ secrets.VITE_EDITOR_KEY}}
+              run: |
+                  echo "VITE_EDITOR_KEY=$VITE_EDITOR_KEY" >> .env.local
 
-      - name: 🚀 Terraform Apply (auto-approve)
-        run: terraform apply -auto-approve tfplan
+            - name: Install dependencies Build
+              run: npm install
+            - name: Build
+              run: npm run build
+              
+              
+            - name: Configure AWS Credentials
+              uses: aws-actions/configure-aws-credentials@v1
+              with:
+                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                  aws-region: us-east-1
 
-      - name: 📤 Upload website files to S3
-        run: |
-          bucket_name=$(terraform output -raw website_url | cut -d'.' -f1)
-          aws s3 sync ./website s3://$bucket_name --delete
+            - name: Deploy to S3
+              run: aws s3 sync ./dist s3://m-trend --acl public-read
+
+             
+                  
+
+
+# name: Deploy Static Website with Terraform CI/CD
+
+# on:
+#   push:
+#     branches: ["main"]
+#   # pull_request:
+#   #   branches: ["main"]
+
+# jobs:
+#   deploy:
+#     name: Terraform + Website Upload
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: 📥 Checkout repository
+#         uses: actions/checkout@v4
+
+#       - name: 🛠 Set up Terraform
+#         uses: hashicorp/setup-terraform@v2
+#         with:
+#           terraform_version: 1.5.7
+
+#       - name: 🔐 Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v2
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: us-east-1
+
+#       - name: 📁 Terraform Init
+#         run: terraform init
+
+#       - name: ✅ Terraform Validate
+#         run: terraform validate
+
+#       - name: 🔍 Terraform Plan
+#         run: terraform plan -out=tfplan
+
+#       - name: 🚀 Terraform Apply (auto-approve)
+#         run: terraform apply -auto-approve tfplan
+
+#       - name: 📤 Upload website files to S3
+#         run: |
+#           bucket_name=$(terraform output -raw website_url | cut -d'.' -f1)
+#           aws s3 sync ./website s3://$bucket_name --delete
