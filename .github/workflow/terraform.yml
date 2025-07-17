@@ -1,54 +1,57 @@
 name: cicd pipeline
 
 on:
-    push:
-        branches: ['dev', 'main', test, qa]
-    pull_request:
-        branches: [main, dev, test, qa]
+  push:
+    branches: ['dev', 'main', 'test', 'qa']
+  pull_request:
+    branches: ['main', 'dev', 'test', 'qa']
+
 jobs:
-    upgrade:
-        runs-on: ubuntu-latest
-        steps:
-            - name: Checkout to Gihub
-              uses: actions/checkout@v4
+  upgrade:
+    runs-on: ubuntu-latest
 
-            - name: build and push nextjs app
-              uses: actions/setup-node@v4
-              with:
-                  node-version: '20.x'
-            - name: Install dependencies and build
-              run: |
-                  npm install
-                  npm run build
-              working-directory: ./terraform-assignment-cicd
+    steps:
+      - name: Checkout GitHub Repository
+        uses: actions/checkout@v4
 
-            - name: aunticate to AWS
-              uses: aws-actions/configure-aws-credentials@v3
-              with:
-                  aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-                  aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-                  aws-region: us-east-1
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
 
-            - name: install and run terraform
-              uses: hashicorp/setup-terraform@v2
-              with:
-                  terraform_version: 1.5.7
-            - name: Terraform Init
-              run: terraform init
-              working-directory: ./terraform
+      - name: Install dependencies and build Next.js app
+        run: |
+          npm install
+          npm run build
+        working-directory: ./terraform-assignment-cicd
 
-            - name: Terraform Validate
-              run: terraform validate
-              working-directory: ./terraform
+      - name: Authenticate to AWS
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-            - name: Terraform Format
-              run: terraform fmt -recursive
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.7
 
-              working-directory: ./terraform
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./terraform
 
-            - name: Terraform Plan
-              run: terraform plan
-              working-directory:./terraform 
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: ./terraform
+
+      - name: Terraform Format
+        run: terraform fmt -recursive
+        working-directory: ./terraform
+
+      - name: Terraform Plan
+        run: terraform plan
+        working-directory: ./terraform
 
 
 # name: Deploy Static Website with Terraform CI/CD
