@@ -21,6 +21,8 @@ output "website_endpoint" {
 }
 
 
+#cloudfront
+
 output "cloudfront_domain" {
   description = "The CloudFront distribution domain name"
   value       = module.cloudfront.cloudfront_domain

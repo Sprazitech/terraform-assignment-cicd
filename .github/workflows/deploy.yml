@@ -3,8 +3,8 @@ name: Deploy Static Website with Terraform CI/CD
 on:
   push:
     branches: ['main']
-  # pull_request:
-  #   branches: ['main']
+  pull_request:
+    branches: ['main']
 
 jobs:
   deploy:
@@ -29,17 +29,26 @@ jobs:
 
       - name: 📁 Terraform Init
         run: terraform init
+        working-directory: ./terraform
 
       - name: ✅ Terraform Validate
         run: terraform validate
+        working-directory: ./terraform
 
       - name: 🔍 Terraform Plan
         run: terraform plan -out=tfplan
+        working-directory: ./terraform
 
       - name: 🚀 Terraform Apply (auto-approve)
         run: terraform apply -auto-approve tfplan
+        working-directory: ./terraform
+
+      - name: 📝 Install AWS CLI (if missing)
+        run: |
+          sudo apt update && sudo apt install -y awscli
 
       - name: 📤 Upload website files to S3
         run: |
-          bucket_name=$(terraform output -raw website_bucket_name)
-          aws s3 sync ./website s3://$bucket_name --delete --acl public-read
+          bucket_name=$(terraform -chdir=./terraform output -raw website_bucket_name)
+          echo "Bucket name: $bucket_name"
+          aws s3 sync ./website s3://$bucket_name --delete
